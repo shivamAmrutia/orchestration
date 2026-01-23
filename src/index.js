@@ -1,13 +1,28 @@
 import runWorkflow from "./engine/runWorkflow.js";
-
-const workflow = {
-    id: "ci_pipeline",
-    tasks: [
-      { id: "test", deps: ["deploy"] },
-      { id: "build", deps: ["test"] },
-      { id: "deploy", deps: ["build"] }
-    ]
-  };
+import { loadWorkflowForExecution } from "./db/workflow.js";
+import "dotenv/config";
 
 
-runWorkflow(workflow);
+async function main() {
+  try {
+    // Load workflow from database
+    let workflow;
+    if (process.env.WORKFLOW_ID) {
+      workflow = await loadWorkflowForExecution(process.env.WORKFLOW_ID);
+    } else {
+      console.error("❌ No workflow ID provided");
+      process.exit(1);
+    }
+
+    console.log(`📋 Loaded workflow: ${workflow.name} (${workflow.id})`);
+    console.log(`📦 Tasks: ${workflow.tasks.length}`);
+    
+    // Run the workflow
+    await runWorkflow(workflow);
+  } catch (error) {
+    console.error("❌ Error:", error.message);
+    process.exit(1);
+  }
+}
+
+main();

@@ -4,7 +4,7 @@ import prisma from './client.js';
  * Create a workflow with an immutable version
  */
 export async function createWorkflow(data) {
-  return prisma.workflow.create({
+  return prisma.workflows.create({
     data: {
       name: data.name,
       description: data.description,
@@ -20,7 +20,7 @@ export async function updateWorkflow(id, data) {
   // Explicitly exclude version to ensure immutability
   const { version, ...updateData } = data;
   
-  return prisma.workflow.update({
+  return prisma.workflows.update({
     where: { id },
     data: updateData,
   });
@@ -30,7 +30,97 @@ export async function updateWorkflow(id, data) {
  * Get workflow by version (for version-based lookups)
  */
 export async function getWorkflowByVersion(version) {
-  return prisma.workflow.findUnique({
+  return prisma.workflows.findUnique({
     where: { version },
   });
+}
+
+/**
+ * Load a workflow with tasks and dependencies, formatted for runWorkflow
+ */
+export async function loadWorkflowForExecution(workflowId) {
+  const workflow = await prisma.workflows.findUnique({
+    where: { id: workflowId },
+    include: {
+      tasks: {
+        include: {
+          dependencies: {
+            include: {
+              dependsOn: true
+            }
+          }
+        }
+      }
+    }
+  });
+
+  if (!workflow) {
+    throw new Error(`Workflow with id ${workflowId} not found`);
+  }
+
+  // Transform database structure to format expected by runWorkflow
+  const tasks = workflow.tasks.map(task => {
+    // Get all task IDs that this task depends on
+    const deps = task.dependencies.map(dep => dep.dependsOn.id);
+    
+    return {
+      id: task.id,
+      name: task.name,
+      type: task.type,
+      config: task.config,
+      deps: deps
+    };
+  });
+
+  return {
+    id: workflow.id,
+    name: workflow.name,
+    version: workflow.version,
+    tasks: tasks
+  };
+}
+
+/**
+ * Load a workflow by name (loads the first matching workflow)
+ */
+export async function loadWorkflowByName(workflowName) {
+  const workflow = await prisma.workflows.findFirst({
+    where: { name: workflowName },
+    include: {
+      tasks: {
+        include: {
+          dependencies: {
+            include: {
+              dependsOn: true
+            }
+          }
+        }
+      }
+    }
+  });
+
+  if (!workflow) {
+    throw new Error(`Workflow with name "${workflowName}" not found`);
+  }
+
+  // Transform database structure to format expected by runWorkflow
+  const tasks = workflow.tasks.map(task => {
+    // Get all task IDs that this task depends on
+    const deps = task.dependencies.map(dep => dep.dependsOn.id);
+    
+    return {
+      id: task.id,
+      name: task.name,
+      type: task.type,
+      config: task.config,
+      deps: deps
+    };
+  });
+
+  return {
+    id: workflow.id,
+    name: workflow.name,
+    version: workflow.version,
+    tasks: tasks
+  };
 }

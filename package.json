@@ -9,18 +9,25 @@
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
-    "db:push": "prisma db push"
+    "db:push": "prisma db push",
+    "db:seed": "tsx prisma/seed.js"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@prisma/adapter-pg": "^7.3.0",
     "@prisma/client": "^7.3.0",
-    "express": "^5.2.1"
+    "express": "^5.2.1",
+    "pg": "^8.17.2"
   },
   "devDependencies": {
     "dotenv": "^17.2.3",
-    "prisma": "^7.3.0"
+    "prisma": "^7.3.0",
+    "tsx": "^4.7.0"
   }
 }

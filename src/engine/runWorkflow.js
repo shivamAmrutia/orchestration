@@ -43,7 +43,7 @@ async function runWorkflow(workflow) {
 
       if (deps.includes(TaskState.FAILED)) {
         taskState.set(task.id, TaskState.BLOCKED);
-        console.log(`⛔ ${task.id} blocked`);
+        console.log(`⛔ ${task.name} blocked`);
         progress = true;
         continue;
       }
@@ -53,19 +53,19 @@ async function runWorkflow(workflow) {
 
       taskState.set(task.id, TaskState.RUNNING);
       try {
-        await runTask(task.id);
+        await runTask(task.name);
         taskState.set(task.id, TaskState.COMPLETED);
-        console.log(`✅ ${task.id} completed`);
+        console.log(`✅ ${task.name} completed`);
       } catch (err) {
         taskRetries.set(task.id, taskRetries.get(task.id) + 1);
         if (taskRetries.get(task.id) < MAX_RETRIES) {
           // Schedule retry without blocking - set state to RETRYING and track retry time
           taskState.set(task.id, TaskState.RETRYING);
           retrySchedules.set(task.id, now + RETRY_DELAY);
-          console.log(`⏳ ${task.id} scheduled for retry ${taskRetries.get(task.id)}/${MAX_RETRIES} in ${RETRY_DELAY}ms`);
+          console.log(`⏳ ${task.name} scheduled for retry ${taskRetries.get(task.id)}/${MAX_RETRIES} in ${RETRY_DELAY}ms`);
         } else {
           taskState.set(task.id, TaskState.FAILED);
-          console.log(`❌ ${task.id} failed after ${MAX_RETRIES} retries`);
+          console.log(`❌ ${task.name} failed after ${MAX_RETRIES} retries`);
         }
       }
 
