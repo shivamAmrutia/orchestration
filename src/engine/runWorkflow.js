@@ -1,4 +1,4 @@
-import runTask from "../tasks/runTask.js";
+import runTask from "../modules/tasks/runTask.js";
 
 const TaskState = {
   PENDING: "PENDING",
