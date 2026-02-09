@@ -1,5 +1,7 @@
 import { Router } from "express";
 import * as service from "./workflows.service.js";
+import { runWorkflowExecutor } from "../../executor.js";
+import runTask  from "../tasks/runTask.js"
 
 const router = Router();
 
@@ -25,12 +27,35 @@ router.get("/:id", async (req, res, next) => {
   }
 });
 
-router.post("/:id/run", async (req, res, next) => {
+// Manual trigger
+router.post("/:id/run", async (req, res) => {
+  const workflowId = req.params.id;
+
   try {
-    const execution = await service.runWorkflow(req.params.id);
-    res.status(202).json(execution);
+    // 1. Validate workflow
+    const workflow = await service.getWorkflow(workflowId);
+    if (!workflow) {
+      return res.status(404).json({ error: "Workflow not found" });
+    }
+
+    // 2. Create execution
+    const execution = await service.runWorkflow(workflowId);
+
+    // 3. Manually trigger executor (fire-and-forget)
+    runWorkflowExecutor(execution.id, runTask)
+      .catch(err => {
+        console.error("Executor crashed:", err);
+      });
+
+    // 4. Respond immediately
+    res.status(202).json({
+      message: "Workflow triggered",
+      executionId: execution.id
+    });
+
   } catch (err) {
-    next(err);
+    console.error(err);
+    res.status(500).json({ error: err.message });
   }
 });
 

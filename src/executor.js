@@ -5,7 +5,7 @@ import {
     failTask,
     updateWorkflowExecutionStatus,
     getWorkflowExecution
-} from "./modules/workflows/service.js";
+} from "./modules/workflows/workflows.service.js";
 
 /**
  * Run the executor for one workflow execution
