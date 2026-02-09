@@ -4,7 +4,7 @@ import {
 } from "./workflows.types.js";
 
 
-import prisma from "../../db/client.js";
+import prisma from "../../../prisma/client.js";
 
 /**
  * Creates a workflow definition with tasks and dependencies.
