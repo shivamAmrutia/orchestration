@@ -1,9 +1,8 @@
 function runTask(task) {
   return new Promise((resolve, reject) => {
-    console.log(`▶️ Running ${task}`);
     setTimeout(() => {
-      if (Math.random() < 0.7) {
-        reject(new Error(`${task} failed`));
+      if (Math.random() < 0.8) {
+        reject(new Error(`${task.name} failed`));
       } else {
         resolve();
       }

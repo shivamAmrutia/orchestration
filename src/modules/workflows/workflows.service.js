@@ -11,8 +11,8 @@ import prisma from "../../../prisma/client.js";
  * Enforces DAG correctness and transactional safety.
  */
 export async function createWorkflow(input) {
-  const { name, description, tasks, dependencies = [] } = input;
-
+  const { name, description, tasks} = input;
+  
   if (!name) {
     throw new Error("Workflow name is required");
   }
@@ -28,17 +28,27 @@ export async function createWorkflow(input) {
     throw new Error("Task names must be unique within a workflow");
   }
 
-  // 2. Validate dependencies reference valid tasks
-  for (const dep of dependencies) {
-    if (!uniqueNames.has(dep.from) || !uniqueNames.has(dep.to)) {
-      throw new Error(
-        `Invalid dependency: ${dep.from} depends on ${dep.to}`
-      );
-    }
-    if (dep.from === dep.to) {
-      throw new Error("Task cannot depend on itself");
+  // 2. Validate dependencies reference valid tasks and build dependencies map
+  
+  const dependencies = [];
+
+  for (const task of tasks) {
+    for (const dep of task.dependencies || []) {
+
+      dependencies[task.name] ? dependencies[task.name].push(dep) : dependencies[task.name] = [dep];
+
+      if (!uniqueNames.has(dep)) {
+        throw new Error(
+          `Invalid dependency: ${dep.from} depends on ${dep.to}`
+        );
+      }
+      if (dep === task.name) {
+        throw new Error("Task cannot depend on itself");
+      }
     }
   }
+
+  console.log(dependencies);
 
   // 3. Validate DAG (cycle detection)
   validateNoCycles(taskNames, dependencies);
@@ -65,13 +75,15 @@ export async function createWorkflow(input) {
     }
 
     // Create dependency edges
-    for (const dep of dependencies) {
-      await tx.taskDependency.create({
-        data: {
-          taskId: taskIdMap.get(dep.from),
-          dependsOnTaskId: taskIdMap.get(dep.to)
-        }
-      });
+    for (const elem of dependencies) {
+      for (const dep of elem.dependencies) {
+        await tx.task_dependencies.create({
+          data: {
+            taskId: taskIdMap.get(elem),
+            dependsOnTaskId: taskIdMap.get(dep)
+          }
+        });
+      }
     }
 
     return workflow;
@@ -215,15 +227,11 @@ export async function runWorkflow(workflowId) {
 
     // 3. Create task execution records
     for (const task of workflow.tasks) {
-      const hasDependencies = task.dependencies.length > 0;
-
       await tx.taskExecution.create({
         data: {
           workflowExecutionId: execution.id,
           taskId: task.id,
-          state: hasDependencies
-            ? TaskState.BLOCKED
-            : TaskState.PENDING
+          state: TaskState.PENDING
         }
       });
     }
@@ -315,6 +323,7 @@ export async function getRunnableTasks(executionId, now = new Date()) {
     }
   });
 
+
   const runnable = [];
 
   for (const te of taskExecutions) {
@@ -399,7 +408,7 @@ export async function failTask(taskExecutionId, errorMessage, retryDelayMs = 100
 
     const nextRetryCount = te.retryCount + 1;
 
-    if (nextRetryCount > te.maxRetries) {
+    if (nextRetryCount > te.maxRetries - 1) {
       // Terminal failure
       return tx.taskExecution.update({
         where: { id: taskExecutionId },
@@ -444,11 +453,13 @@ export async function updateWorkflowExecutionStatus(executionId) {
 
   const states = tasks.map(t => t.state);
 
-  if (states.some(s => s === TaskState.RUNNING || s === TaskState.RETRYING)) {
-    newState = WorkflowState.RUNNING;
-  } else if (states.some(s => s === TaskState.FAILED)) {
+  if (states.some(s => s === TaskState.FAILED)) {
     newState = WorkflowState.FAILED;
-  } else {
+  }
+  else if (states.some(s => s === TaskState.RUNNING || s === TaskState.RETRYING || s === TaskState.PENDING)) {
+    newState = WorkflowState.RUNNING;
+  }
+  else {
     // All tasks are COMPLETED or BLOCKED → still COMPLETED
     newState = WorkflowState.COMPLETED;
   }

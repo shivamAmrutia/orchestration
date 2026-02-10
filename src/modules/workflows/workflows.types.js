@@ -1,10 +1,10 @@
 export const TaskState = Object.freeze({
     PENDING: "PENDING",
     RUNNING: "RUNNING",
+    RETRYING: "RETRYING",
     COMPLETED: "COMPLETED",
     FAILED: "FAILED",
-    BLOCKED: "BLOCKED",
-    RETRYING: "RETRYING"
+    BLOCKED: "BLOCKED"
   });
   
 export const WorkflowState = Object.freeze({

@@ -38,7 +38,7 @@ export async function runWorkflowExecutor(
                 try {
                     // Claim task
                     await markTaskRunning(task.taskExecutionId);
-                    console.log(`🏃 Running task: ${task.name} (${task.taskId})`);
+                    console.log(`🏃 Running task: ${task.name}`);
 
                     // Execute user-provided function
                     await runTaskFn(task);

@@ -5,10 +5,6 @@ import runTask  from "../tasks/runTask.js"
 
 const router = Router();
 
-router.get("/test", async(req,res) => {
-    console.log("works well");
-});
-
 router.post("/", async (req, res, next) => {
   try {
     const workflow = await service.createWorkflow(req.body);
