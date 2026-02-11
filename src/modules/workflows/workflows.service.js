@@ -30,7 +30,7 @@ export async function createWorkflow(input) {
 
   // 2. Validate dependencies reference valid tasks and build dependencies map
   
-  const dependencies = [];
+  const dependencies = {};
 
   for (const task of tasks) {
     for (const dep of task.dependencies || []) {
@@ -47,8 +47,6 @@ export async function createWorkflow(input) {
       }
     }
   }
-
-  console.log(dependencies);
 
   // 3. Validate DAG (cycle detection)
   validateNoCycles(taskNames, dependencies);
@@ -75,9 +73,9 @@ export async function createWorkflow(input) {
     }
 
     // Create dependency edges
-    for (const elem of dependencies) {
-      for (const dep of elem.dependencies) {
-        await tx.task_dependencies.create({
+    for (const elem in dependencies) {
+      for (const dep of dependencies[elem]) {
+        await tx.taskDependency.create({
           data: {
             taskId: taskIdMap.get(elem),
             dependsOnTaskId: taskIdMap.get(dep)
@@ -97,8 +95,8 @@ function validateNoCycles(taskNames, dependencies) {
 
   taskNames.forEach(name => graph.set(name, []));
 
-  for (const { from, to } of dependencies) {
-    graph.get(from).push(to);
+  for (const elem in dependencies) { 
+    graph.get(elem).push(...dependencies[elem]);
   }
 
   function dfs(node) {

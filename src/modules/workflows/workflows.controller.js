@@ -10,7 +10,8 @@ router.post("/", async (req, res, next) => {
     const workflow = await service.createWorkflow(req.body);
     res.status(201).json(workflow);
   } catch (err) {
-    next(err);
+    console.error(err);
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -19,7 +20,8 @@ router.get("/:id", async (req, res, next) => {
     const workflow = await service.getWorkflow(req.params.id);
     res.json(workflow);
   } catch (err) {
-    next(err);
+    console.error(err);
+    res.status(500).json({ error: err.message });
   }
 });
 
