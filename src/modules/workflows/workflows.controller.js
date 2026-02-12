@@ -5,6 +5,7 @@ import runTask  from "../tasks/runTask.js"
 
 const router = Router();
 
+//create workflow
 router.post("/", async (req, res, next) => {
   try {
     const workflow = await service.createWorkflow(req.body);
@@ -15,6 +16,18 @@ router.post("/", async (req, res, next) => {
   }
 });
 
+//get all workflows
+router.get("/", async (req, res, next) => {
+  try{
+    const workflows = await service.listWorkflows()
+    res.json(workflows)
+  } catch(err){
+    console.error(err);
+    res.status(500).json({error: err.message})
+  }
+});
+
+//get details for a workflow
 router.get("/:id", async (req, res, next) => {
   try {
     const workflow = await service.getWorkflow(req.params.id);
@@ -26,7 +39,7 @@ router.get("/:id", async (req, res, next) => {
 });
 
 // Manual trigger
-router.post("/:id/run", async (req, res) => {
+router.post("/:id/run", async (req, res, next) => {
   const workflowId = req.params.id;
 
   try {
@@ -56,5 +69,26 @@ router.post("/:id/run", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+//get execution details for a workflow
+router.get("/workflow-executions/:id", async (req, res, next) => {
+  try{
+    const execution = await service.getWorkflowExecution(req.params.id)
+    res.json(execution)
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+})
+
+router.get("/:id/executions", async (req, res, next) => {
+  try{
+    const executions = await service.getAllExecutionsForWorkflow(req.params.id)
+    res.json(executions);
+  } catch (err) {
+    console.error(err.message)
+    res.status(500).json({ error: err.message });
+  }
+})
 
 export default router;

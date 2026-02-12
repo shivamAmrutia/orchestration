@@ -300,6 +300,35 @@ function normalizeExecution(execution) {
   };
 }
 
+export async function getAllExecutionsForWorkflow(workflowId) {
+  if (!workflowId) {
+    throw new Error("workflowId is required");
+  }
+
+  const executions = await prisma.workflowExecution.findMany({
+    where: { workflowId: workflowId },
+    include: {
+      workflow: true, // optional, if you want workflow metadata
+      taskExecutions: {
+        include: {
+          task: {
+            select: {
+              name: true,
+              type: true,
+              config: true
+            }
+          }
+        },
+        orderBy: {
+          createdAt: "asc"
+        }
+      }
+    }
+  });
+
+  return normalizeExecution(executions)
+}
+
 
 
 export async function getRunnableTasks(executionId, now = new Date()) {
