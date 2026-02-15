@@ -4,7 +4,7 @@ import { z } from "zod";
  * Input validation schema
  */
 const sendEmailInputSchema = z.object({
-  to: z.string().email(),
+  to: z.email(),
   subject: z.string().min(1),
   body: z.string().min(1)
 });
