@@ -326,10 +326,8 @@ export async function getAllExecutionsForWorkflow(workflowId) {
     }
   });
 
-  return normalizeExecution(executions)
+  return executions
 }
-
-
 
 export async function getRunnableTasks(executionId, now = new Date()) {
   if (!executionId) throw new Error("executionId is required");

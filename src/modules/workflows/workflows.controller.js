@@ -81,6 +81,7 @@ router.get("/workflow-executions/:id", async (req, res, next) => {
   }
 })
 
+//get all executions for a workflow
 router.get("/:id/executions", async (req, res, next) => {
   try{
     const executions = await service.getAllExecutionsForWorkflow(req.params.id)
