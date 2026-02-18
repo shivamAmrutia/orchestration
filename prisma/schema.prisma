@@ -61,33 +61,40 @@ model WorkflowExecution {
   id          String   @id @default(uuid())
   workflowId  String
   status      String   // "RUNNING", "COMPLETED", "FAILED"
+
+  input       Json?    
+
   startedAt   DateTime @default(now())
   completedAt DateTime?
-  
+
   workflow    Workflows @relation(fields: [workflowId], references: [id], onDelete: Cascade)
   taskExecutions TaskExecution[]
-  
+
   @@map("workflow_executions")
 }
+
 
 model TaskExecution {
   id                  String   @id @default(uuid())
   workflowExecutionId String
-  taskId              String   // Reference to Task.id (UUID)
-  state               String   // "PENDING", "RUNNING", "COMPLETED", "FAILED", "BLOCKED", "RETRYING"
+  taskId              String
+  state               String
+
   retryCount          Int      @default(0)
   maxRetries          Int      @default(3)
   nextRetryAt         DateTime?
   startedAt           DateTime?
   completedAt         DateTime?
   error               String?
-  
+
+  output              Json?    
+
   workflowExecution   WorkflowExecution @relation(fields: [workflowExecutionId], references: [id], onDelete: Cascade)
   task                Tasks             @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  
+
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
-  
+
   @@index([state])
   @@map("task_executions")
 }
