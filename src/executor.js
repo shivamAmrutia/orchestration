@@ -41,10 +41,10 @@ export async function runWorkflowExecutor(
                     console.log(`🏃 Running task: ${task.name}`);
 
                     // Execute user-provided function
-                    await runTaskFn(task);
+                    const output = await runTaskFn(task);
 
                     // Mark task completed
-                    await completeTask(task.taskExecutionId);
+                    await completeTask(task.taskExecutionId, output);
                     console.log(`✅ Task completed: ${task.name} (${task.taskId})`);
                 } catch (err) {
                     // Fail task or schedule retry

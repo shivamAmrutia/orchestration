@@ -1,7 +1,9 @@
 import { SendEmailDefinition } from "./definitions/sendEmail.js";
+import { IoEchoDefinition } from "./definitions/ioEcho.js";
 
 export const taskRegistry = {
-  SEND_EMAIL: SendEmailDefinition
+  SEND_EMAIL: SendEmailDefinition,
+  IO_ECHO: IoEchoDefinition
 };
 
 /**

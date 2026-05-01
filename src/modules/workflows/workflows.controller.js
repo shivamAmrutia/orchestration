@@ -50,10 +50,10 @@ router.post("/:id/run", async (req, res, next) => {
     }
 
     // 2. Create execution
-    const execution = await service.runWorkflow(workflowId);
+    const executionId = await service.runWorkflow(workflowId, req.body ?? null);
 
     // 3. Manually trigger executor (fire-and-forget)
-    runWorkflowExecutor(execution.id, runTask)
+    runWorkflowExecutor(executionId, runTask)
       .catch(err => {
         console.error("Executor crashed:", err);
       });
@@ -61,7 +61,7 @@ router.post("/:id/run", async (req, res, next) => {
     // 4. Respond immediately
     res.status(202).json({
       message: "Workflow triggered",
-      executionId: execution.id
+      executionId: executionId
     });
 
   } catch (err) {

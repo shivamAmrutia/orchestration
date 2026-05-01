@@ -11,7 +11,9 @@
     "db:migrate:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
     "db:push": "prisma db push",
-    "db:seed": "tsx prisma/seed.js"
+    "db:seed": "tsx prisma/seed.js",
+    "pretest:io": "prisma generate",
+    "test:io": "tsx ./src/scripts/testIoPropagation.js"
   },
   "prisma": {
     "seed": "tsx prisma/seed.js"

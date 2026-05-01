@@ -197,7 +197,7 @@ export async function listWorkflows({
 }
 
 
-export async function runWorkflow(workflowId) {
+export async function runWorkflow(workflowId, input = null) {
   return prisma.$transaction(async (tx) => {
     // 1. Fetch workflow with tasks + dependencies
     const workflow = await tx.workflows.findUnique({
@@ -219,7 +219,8 @@ export async function runWorkflow(workflowId) {
     const execution = await tx.workflowExecution.create({
       data: {
         workflowId: workflow.id,
-        status: WorkflowState.RUNNING
+        status: WorkflowState.RUNNING,
+        input
       }
     });
 
@@ -234,7 +235,7 @@ export async function runWorkflow(workflowId) {
       });
     }
 
-    return execution;
+    return execution.id;
   });
 }
 
@@ -281,6 +282,7 @@ function normalizeExecution(execution) {
     workflowId: execution.workflowId,
     workflowName: execution.workflow?.name,
     status: execution.status,
+    input: execution.input,
     startedAt: execution.startedAt,
     completedAt: execution.completedAt,
     tasks: execution.taskExecutions.map(te => ({
@@ -295,7 +297,8 @@ function normalizeExecution(execution) {
       nextRetryAt: te.nextRetryAt,
       startedAt: te.startedAt,
       completedAt: te.completedAt,
-      error: te.error
+      error: te.error,
+      output: te.output
     }))
   };
 }
@@ -331,6 +334,15 @@ export async function getAllExecutionsForWorkflow(workflowId) {
 
 export async function getRunnableTasks(executionId, now = new Date()) {
   if (!executionId) throw new Error("executionId is required");
+
+  const workflowExecution = await prisma.workflowExecution.findUnique({
+    where: { id: executionId },
+    select: { id: true, input: true }
+  });
+
+  if (!workflowExecution) {
+    throw new Error("Workflow execution not found");
+  }
 
   // 1. Fetch all task executions + their dependencies
   const taskExecutions = await prisma.taskExecution.findMany({
@@ -375,11 +387,18 @@ export async function getRunnableTasks(executionId, now = new Date()) {
   }
 
   return runnable.map(te => ({
+    workflowExecutionId: executionId,
     taskExecutionId: te.id,
     taskId: te.taskId,
     name: te.task.name,
     type: te.task.type,
     config: te.task.config,
+    workflowInput: workflowExecution.input,
+    upstreamOutputs: te.task.dependencies.reduce((acc, dep) => {
+      const depExecution = taskExecutions.find(d => d.taskId === dep.dependsOnTaskId);
+      acc[dep.dependsOn.name] = depExecution?.output ?? null;
+      return acc;
+    }, {}),
     state: te.state,
     retryCount: te.retryCount,
     maxRetries: te.maxRetries,
@@ -413,12 +432,13 @@ export async function markTaskRunning(taskExecutionId) {
   });
 }
 
-export async function completeTask(taskExecutionId) {
+export async function completeTask(taskExecutionId, output = null) {
   return prisma.taskExecution.update({
     where: { id: taskExecutionId },
     data: {
       state: TaskState.COMPLETED,
-      completedAt: new Date()
+      completedAt: new Date(),
+      output
     }
   });
 }

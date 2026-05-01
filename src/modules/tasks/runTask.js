@@ -16,10 +16,28 @@ export default async function runTask(task) {
 
   console.log(`🔧 Executing task type: ${task.type}`);
 
+  const workflowInput = task.workflowInput ?? {};
+  const upstreamOutputs = task.upstreamOutputs ?? {};
+  const mergedUpstreamOutput = Object.values(upstreamOutputs).reduce((acc, value) => {
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      return { ...acc, ...value };
+    }
+    return acc;
+  }, {});
+
+  const input = {
+    ...workflowInput,
+    ...mergedUpstreamOutput,
+    ...(task.config ?? {})
+  };
+
   return definition.run({
     config: task.config,
+    input,
     executionId: task.workflowExecutionId,
     taskExecutionId: task.taskExecutionId,
+    workflowInput,
+    upstreamOutputs,
     services: {
       email: emailService
     }

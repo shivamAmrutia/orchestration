@@ -1,8 +1,11 @@
 /**
  * @typedef {Object} TaskContext
  * @property {Object} config
+ * @property {Object} input
  * @property {string} executionId
  * @property {string} taskExecutionId
+ * @property {Object} workflowInput
+ * @property {Object} upstreamOutputs
  * @property {Object} services
  */
 

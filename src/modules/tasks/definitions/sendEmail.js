@@ -23,9 +23,9 @@ export const SendEmailDefinition = {
   /**
    * @param {import("../types.js").TaskContext} context
    */
-  async run({ config, services }) {
-    //Validate input
-    const parsed = sendEmailInputSchema.parse(config);
+  async run({ config, input, services }) {
+    // Validate resolved input (workflow input + upstream outputs + config)
+    const parsed = sendEmailInputSchema.parse(input ?? config);
 
     if (!services.email) {
       throw new Error("Email service not available");
