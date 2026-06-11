@@ -18,33 +18,29 @@ const prisma = new PrismaClient({
 async function main() {
   console.log('🌱 Seeding database...');
 
-  // Clear existing data (optional - comment out if you want to keep existing data)
   console.log('🧹 Cleaning up existing data...');
+  await prisma.taskExecution.deleteMany({});
+  await prisma.workflowExecution.deleteMany({});
   await prisma.taskDependency.deleteMany({});
   await prisma.tasks.deleteMany({});
   await prisma.workflows.deleteMany({});
   console.log('✅ Cleaned up existing data');
 
-  // Create a CI pipeline workflow
   const workflow = await prisma.workflows.create({
     data: {
-      name: 'ci_pipeline',
-      description: 'CI/CD Pipeline with build, test, and deploy tasks',
+      name: 'demo_io_pipeline',
+      description: 'Sample DAG using registered IO_ECHO tasks',
     },
   });
 
   console.log(`✅ Created workflow: ${workflow.name} (${workflow.id})`);
 
-  // Create tasks
   const buildTask = await prisma.tasks.create({
     data: {
       workflowId: workflow.id,
       name: 'build',
-      type: 'build',
-      config: {
-        command: 'npm run build',
-        timeout: 300000,
-      },
+      type: 'IO_ECHO',
+      config: { emit: { stage: 'build', ok: true } },
     },
   });
 
@@ -52,11 +48,8 @@ async function main() {
     data: {
       workflowId: workflow.id,
       name: 'test',
-      type: 'test',
-      config: {
-        command: 'npm test',
-        timeout: 60000,
-      },
+      type: 'IO_ECHO',
+      config: { emit: { stage: 'test', ok: true } },
     },
   });
 
@@ -64,18 +57,13 @@ async function main() {
     data: {
       workflowId: workflow.id,
       name: 'deploy',
-      type: 'deploy',
-      config: {
-        command: 'npm run deploy',
-        environment: 'production',
-      },
+      type: 'IO_ECHO',
+      config: { emit: { stage: 'deploy', ok: true } },
     },
   });
 
-  console.log(`✅ Created tasks: build, test, deploy`);
+  console.log('✅ Created tasks: build, test, deploy (IO_ECHO)');
 
-  // Create task dependencies
-  // test depends on build (test runs after build completes)
   await prisma.taskDependency.create({
     data: {
       taskId: testTask.id,
@@ -83,7 +71,6 @@ async function main() {
     },
   });
 
-  // deploy depends on test (deploy runs after test completes)
   await prisma.taskDependency.create({
     data: {
       taskId: deployTask.id,
@@ -93,9 +80,11 @@ async function main() {
 
   console.log('✅ Created task dependencies: build → test → deploy');
 
+  const port = process.env.PORT || 3000;
   console.log('🎉 Seeding completed!');
   console.log(`\nWorkflow ID: ${workflow.id}`);
-  console.log(`You can now run: WORKFLOW_ID=${workflow.id} node src/index.js`);
+  console.log(`Trigger via API: POST http://localhost:${port}/api/workflows/${workflow.id}/run`);
+  console.log('Run IO tests: npm run test:io');
 }
 
 main()

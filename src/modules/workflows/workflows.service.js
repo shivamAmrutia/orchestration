@@ -39,7 +39,7 @@ export async function createWorkflow(input) {
 
       if (!uniqueNames.has(dep)) {
         throw new Error(
-          `Invalid dependency: ${dep.from} depends on ${dep.to}`
+          `Invalid dependency: task "${task.name}" depends on unknown task "${dep}"`
         );
       }
       if (dep === task.name) {
@@ -329,7 +329,7 @@ export async function getAllExecutionsForWorkflow(workflowId) {
     }
   });
 
-  return executions
+  return executions.map(normalizeExecution);
 }
 
 export async function getRunnableTasks(executionId, now = new Date()) {
@@ -443,6 +443,47 @@ export async function completeTask(taskExecutionId, output = null) {
   });
 }
 
+async function blockDownstreamTasks(tx, workflowExecutionId, failedTaskId) {
+  const taskExecutions = await tx.taskExecution.findMany({
+    where: { workflowExecutionId },
+    include: {
+      task: {
+        include: { dependencies: true }
+      }
+    }
+  });
+
+  const queue = [failedTaskId];
+  const visited = new Set();
+
+  while (queue.length) {
+    const blockedTaskId = queue.shift();
+    if (visited.has(blockedTaskId)) continue;
+    visited.add(blockedTaskId);
+
+    for (const te of taskExecutions) {
+      const dependsOnBlocked = te.task.dependencies.some(
+        dep => dep.dependsOnTaskId === blockedTaskId
+      );
+
+      if (
+        dependsOnBlocked &&
+        (te.state === TaskState.PENDING || te.state === TaskState.RETRYING)
+      ) {
+        await tx.taskExecution.update({
+          where: { id: te.id },
+          data: {
+            state: TaskState.BLOCKED,
+            completedAt: new Date(),
+            error: "Blocked due to upstream failure"
+          }
+        });
+        queue.push(te.taskId);
+      }
+    }
+  }
+}
+
 export async function failTask(taskExecutionId, errorMessage, retryDelayMs = 10000) {
   return prisma.$transaction(async (tx) => {
     const te = await tx.taskExecution.findUnique({
@@ -455,7 +496,7 @@ export async function failTask(taskExecutionId, errorMessage, retryDelayMs = 100
 
     if (nextRetryCount > te.maxRetries - 1) {
       // Terminal failure
-      return tx.taskExecution.update({
+      const failed = await tx.taskExecution.update({
         where: { id: taskExecutionId },
         data: {
           state: TaskState.FAILED,
@@ -464,6 +505,9 @@ export async function failTask(taskExecutionId, errorMessage, retryDelayMs = 100
           error: errorMessage
         }
       });
+
+      await blockDownstreamTasks(tx, te.workflowExecutionId, te.taskId);
+      return failed;
     } else {
       // Schedule retry
       return tx.taskExecution.update({

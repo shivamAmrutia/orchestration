@@ -1,27 +1,26 @@
-# ⚙️ Workflow Execution Engine
+# Workflow Execution Engine
 
 A lightweight workflow execution microservice designed to power an n8n-style automation platform.
 
-This service focuses purely on executing workflows, not building them.
+This service focuses on executing workflows, not building them.
 
-## 🚀 What It Does
+## What It Does
 
-- Executes DAG-based workflows
-- Runs tasks only when dependencies are satisfied
-- Handles retries with delay
-- Propagates terminal failures
+- Executes DAG-based workflows with PostgreSQL persistence
+- Exposes a REST API for workflow CRUD and execution
+- Runs tasks when dependencies are satisfied (parallel where possible)
+- Propagates workflow input and upstream task outputs into downstream tasks
+- Handles retries with delay and blocks downstream tasks on terminal failure
 - Tracks per-task execution state
 
-Think of it as the engine behind a visual automation tool.
+## Core Concepts
 
-## 🧠 Core Concepts
+- **Workflow**: A Directed Acyclic Graph (DAG) stored in PostgreSQL
+- **Task**: A node with a registered `type` (e.g. `IO_ECHO`, `SEND_EMAIL`)
+- **Dependencies**: Directed edges between tasks
+- **Execution**: A single run of a workflow with optional input payload
 
-- **Workflow**: A Directed Acyclic Graph (DAG)
-- **Task**: A node in the workflow
-- **Dependencies**: Edges between tasks
-- **Retries**: Scheduled re-executions on failure
-
-## 🔄 Task States
+## Task States
 
 ### Non-terminal
 
@@ -35,35 +34,56 @@ Think of it as the engine behind a visual automation tool.
 - `FAILED` (after retries exhausted)
 - `BLOCKED` (dependency terminally failed)
 
-`BLOCKED` is terminal by design — downstream tasks are unreachable once a dependency has permanently failed.
+`BLOCKED` is terminal — downstream tasks are marked unreachable once an upstream task permanently fails.
 
-## 🧩 Execution Semantics
+## Registered Task Types
 
-- Tasks run only when all dependencies are completed
-- Retries are delayed and bounded
-- A terminal failure blocks downstream tasks
-- Workflow completes when all tasks reach terminal states
+| Type | Description |
+|------|-------------|
+| `IO_ECHO` | Debug task; echoes resolved input and optional `config.emit` output |
+| `SEND_EMAIL` | Sends email via Gmail/nodemailer (`EMAIL_USER`, `EMAIL_PASS`) |
 
-## 🏗️ Intended Use
+## API Endpoints
 
-This project is designed to act as:
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/health` | Health check |
+| `POST` | `/api/workflows` | Create workflow |
+| `GET` | `/api/workflows` | List workflows |
+| `GET` | `/api/workflows/:id` | Get workflow with tasks and dependencies |
+| `POST` | `/api/workflows/:id/run` | Trigger execution (body = workflow input) |
+| `GET` | `/api/workflows/:id/executions` | List executions for a workflow |
+| `GET` | `/api/workflows/executions/:executionId` | Get execution details |
 
-- a microservice
-- the execution layer for a visual workflow builder
-- a backend component for an n8n-like automation platform
+## Getting Started
 
-UI, workflow design, and compilation are intentionally out of scope.
+```bash
+cp .env.example .env
+# Edit DATABASE_URL, then:
+npm install
+npm run db:migrate
+npm run db:seed   # optional demo workflow
+npm start
+```
 
-## ✨ Inspiration
+## Scripts
+
+| Script | Purpose |
+|--------|---------|
+| `npm start` | Start HTTP server |
+| `npm run db:migrate` | Apply Prisma migrations |
+| `npm run db:seed` | Seed demo IO_ECHO pipeline |
+| `npm run test:io` | Manual IO propagation checks (requires DB) |
+
+## Work in Progress
+
+- Additional node types (HTTP, delay, condition)
+- Formal test suite (Jest/Vitest)
+- Integration with a visual workflow editor
+- Dedicated worker process (executor currently runs in-process on trigger)
+
+## Inspiration
 
 - n8n
 - Workflow automation engines
 - DAG-based schedulers
-
-## 📈 Work in Progress
-
-- Persistent execution storage
-- REST API
-- Parallel task execution
-- Node types (HTTP, delay, condition)
-- Integration with a visual workflow editor

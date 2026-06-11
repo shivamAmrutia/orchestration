@@ -27,11 +27,22 @@ router.get("/", async (req, res, next) => {
   }
 });
 
-//get details for a workflow
-router.get("/:id", async (req, res, next) => {
+// get a single execution (must be registered before /:id)
+router.get("/executions/:executionId", async (req, res, next) => {
   try {
-    const workflow = await service.getWorkflow(req.params.id);
-    res.json(workflow);
+    const execution = await service.getWorkflowExecution(req.params.executionId);
+    res.json(execution);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// get all executions for a workflow
+router.get("/:id/executions", async (req, res, next) => {
+  try {
+    const executions = await service.getAllExecutionsForWorkflow(req.params.id);
+    res.json(executions);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
@@ -70,26 +81,15 @@ router.post("/:id/run", async (req, res, next) => {
   }
 });
 
-//get execution details for a workflow
-router.get("/workflow-executions/:id", async (req, res, next) => {
-  try{
-    const execution = await service.getWorkflowExecution(req.params.id)
-    res.json(execution)
+// get workflow details
+router.get("/:id", async (req, res, next) => {
+  try {
+    const workflow = await service.getWorkflow(req.params.id);
+    res.json(workflow);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
   }
-})
-
-//get all executions for a workflow
-router.get("/:id/executions", async (req, res, next) => {
-  try{
-    const executions = await service.getAllExecutionsForWorkflow(req.params.id)
-    res.json(executions);
-  } catch (err) {
-    console.error(err.message)
-    res.status(500).json({ error: err.message });
-  }
-})
+});
 
 export default router;
