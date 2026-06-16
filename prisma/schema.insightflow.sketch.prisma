@@ -1,0 +1,142 @@
+// InsightFlow schema sketch — DESIGN ONLY (M0).
+// Do NOT run prisma migrate against this file.
+// Implementation lands in M1 (ResearchWorkspace) and M5 (Evidence Graph).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// --- Existing L1 engine models (already in schema.prisma) ---
+// Workflows, Tasks, TaskDependency, WorkflowExecution, TaskExecution, ExecutionJob
+
+// --- M1: Research Workspace ---
+
+model ResearchWorkspace {
+  id          String   @id @default(uuid())
+  name        String
+  goal        String
+  entityType  String
+  status      String   @default("active")
+
+  workflowId  String   @unique
+  workflow    Workflows @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  schedule    String?
+  lastRunAt   DateTime?
+  lastBriefAt DateTime?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  entities    Entity[]
+  briefs      IntelligenceBrief[]
+  changeEvents ChangeEvent[]
+
+  @@map("research_workspaces")
+}
+
+// --- M3: Collected documents ---
+
+model CollectedDocument {
+  id          String   @id @default(uuid())
+  workspaceId String
+  runId       String
+
+  url         String
+  title       String?
+  content     String   @db.Text
+  sourceType  String
+  fetchedAt   DateTime @default(now())
+
+  evidence    Evidence[]
+
+  @@index([workspaceId, fetchedAt])
+  @@map("collected_documents")
+}
+
+// --- M5: Evidence graph ---
+
+model Entity {
+  id          String   @id @default(uuid())
+  workspaceId String
+  workspace   ResearchWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  name        String
+  entityType  String
+  metadata    Json?
+
+  claims      Claim[]
+
+  @@index([workspaceId, name])
+  @@map("entities")
+}
+
+model Claim {
+  id          String   @id @default(uuid())
+  entityId    String
+  entity      Entity   @relation(fields: [entityId], references: [id], onDelete: Cascade)
+
+  claimType   String
+  text        String
+  confidence  Float
+  firstSeenAt DateTime @default(now())
+  lastSeenAt  DateTime @updatedAt
+
+  evidence    Evidence[]
+
+  @@map("claims")
+}
+
+model Evidence {
+  id          String   @id @default(uuid())
+  claimId     String
+  claim       Claim    @relation(fields: [claimId], references: [id], onDelete: Cascade)
+
+  documentId  String
+  document    CollectedDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  runId       String
+  confidence  Float
+  excerpt     String?  @db.Text
+
+  @@map("evidence")
+}
+
+// --- M6: Change detection ---
+
+model ChangeEvent {
+  id          String   @id @default(uuid())
+  workspaceId String
+  workspace   ResearchWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  runId       String
+  changeType  String
+  entityId    String?
+  summary     String
+  severity    String
+  detectedAt  DateTime @default(now())
+
+  @@index([workspaceId, detectedAt])
+  @@map("change_events")
+}
+
+// --- M7: Intelligence briefs ---
+
+model IntelligenceBrief {
+  id          String   @id @default(uuid())
+  workspaceId String
+  workspace   ResearchWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  runId       String
+  periodStart DateTime
+  periodEnd   DateTime
+  content     String   @db.Text
+  generatedAt DateTime @default(now())
+
+  @@map("intelligence_briefs")
+}

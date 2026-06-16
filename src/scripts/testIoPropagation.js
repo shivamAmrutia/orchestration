@@ -36,7 +36,7 @@ async function runOnce(name, workflowPayload, workflowInput) {
     tasks: workflowPayload.tasks
   });
 
-  const executionId = await workflows.runWorkflow(wf.id, workflowInput);
+  const executionId = await workflows.runWorkflow(wf.id, workflowInput, { skipQueue: true });
   await runWorkflowExecutor(executionId, runTask, POLL_MS);
 
   const final = await workflows.getWorkflowExecution(executionId);

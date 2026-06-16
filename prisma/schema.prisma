@@ -62,15 +62,33 @@ model WorkflowExecution {
   workflowId  String
   status      String   // "RUNNING", "COMPLETED", "FAILED"
 
-  input       Json?    
+  input       Json?
+  callbackUrl String?
 
   startedAt   DateTime @default(now())
   completedAt DateTime?
 
   workflow    Workflows @relation(fields: [workflowId], references: [id], onDelete: Cascade)
   taskExecutions TaskExecution[]
+  executionJob  ExecutionJob?
 
   @@map("workflow_executions")
+}
+
+model ExecutionJob {
+  id                  String   @id @default(uuid())
+  workflowExecutionId String   @unique
+  status              String   // PENDING, PROCESSING, COMPLETED, FAILED
+
+  createdAt           DateTime @default(now())
+  startedAt           DateTime?
+  finishedAt          DateTime?
+  error               String?
+
+  workflowExecution   WorkflowExecution @relation(fields: [workflowExecutionId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+  @@map("execution_jobs")
 }
 
 

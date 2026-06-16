@@ -6,12 +6,15 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "tsx ./src/server.js",
+    "worker": "tsx ./src/worker.js",
+    "dev": "tsx ./src/server.js",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.js",
+    "db:seed:templates": "tsx src/scripts/seedPortfolioTemplates.js",
     "pretest:io": "prisma generate",
     "test:io": "tsx ./src/scripts/testIoPropagation.js"
   },
@@ -21,7 +24,7 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "",
+  "description": "InsightFlow L1 — DAG orchestration engine for continuous market intelligence workflows",
   "dependencies": {
     "@prisma/adapter-pg": "^7.3.0",
     "@prisma/client": "^7.3.0",

@@ -5,6 +5,7 @@ import {
 
 
 import prisma from "../../../prisma/client.js";
+import { enqueueExecution } from "../../queue/executionQueue.js";
 
 /**
  * Creates a workflow definition with tasks and dependencies.
@@ -197,9 +198,10 @@ export async function listWorkflows({
 }
 
 
-export async function runWorkflow(workflowId, input = null) {
-  return prisma.$transaction(async (tx) => {
-    // 1. Fetch workflow with tasks + dependencies
+export async function runWorkflow(workflowId, input = null, options = {}) {
+  const { callbackUrl, skipQueue = false } = options;
+
+  const executionId = await prisma.$transaction(async (tx) => {
     const workflow = await tx.workflows.findUnique({
       where: { id: workflowId },
       include: {
@@ -215,28 +217,34 @@ export async function runWorkflow(workflowId, input = null) {
       throw new Error("Workflow not found");
     }
 
-    // 2. Create workflow execution
     const execution = await tx.workflowExecution.create({
       data: {
         workflowId: workflow.id,
         status: WorkflowState.RUNNING,
-        input
+        input,
+        callbackUrl: callbackUrl ?? null
       }
     });
 
-    // 3. Create task execution records
     for (const task of workflow.tasks) {
       await tx.taskExecution.create({
         data: {
           workflowExecutionId: execution.id,
           taskId: task.id,
-          state: TaskState.PENDING
+          state: TaskState.PENDING,
+          maxRetries: task.config?.maxRetries ?? 3
         }
       });
     }
 
     return execution.id;
   });
+
+  if (!skipQueue) {
+    await enqueueExecution(executionId);
+  }
+
+  return executionId;
 }
 
 
@@ -276,6 +284,20 @@ export async function getWorkflowExecution(executionId) {
   return normalizeExecution(execution);
 }
 
+export async function finalizeWorkflowExecution(executionId, status) {
+  if (!["COMPLETED", "FAILED"].includes(status)) {
+    return null;
+  }
+
+  return prisma.workflowExecution.update({
+    where: { id: executionId },
+    data: {
+      status,
+      completedAt: new Date()
+    }
+  });
+}
+
 function normalizeExecution(execution) {
   return {
     id: execution.id,
@@ -283,6 +305,7 @@ function normalizeExecution(execution) {
     workflowName: execution.workflow?.name,
     status: execution.status,
     input: execution.input,
+    callbackUrl: execution.callbackUrl,
     startedAt: execution.startedAt,
     completedAt: execution.completedAt,
     tasks: execution.taskExecutions.map(te => ({

@@ -1,89 +1,106 @@
-# Workflow Execution Engine
+# InsightFlow
 
-A lightweight workflow execution microservice designed to power an n8n-style automation platform.
+**Continuous market intelligence powered by autonomous research workflows.**
 
-This service focuses on executing workflows, not building them.
+InsightFlow treats research as a **long-running workflow**, not a one-shot chat prompt. Users define a research goal once; the platform continuously collects sources, extracts claims, builds an evidence graph, detects changes, and generates intelligence updates.
 
-## What It Does
+**Differentiator:** Prompt → Report (most AI tools) vs Research Goal → Workflow → Evidence → Knowledge Graph → Continuous Monitoring → Intelligence Updates.
 
-- Executes DAG-based workflows with PostgreSQL persistence
-- Exposes a REST API for workflow CRUD and execution
-- Runs tasks when dependencies are satisfied (parallel where possible)
-- Propagates workflow input and upstream task outputs into downstream tasks
-- Handles retries with delay and blocks downstream tasks on terminal failure
-- Tracks per-task execution state
+## Architecture
 
-## Core Concepts
+```mermaid
+flowchart LR
+  Goal["Research Goal"] --> Engine["L1 Orchestration"]
+  Engine --> Connectors["L2 Connectors"]
+  Connectors --> Extract["L3 Extraction"]
+  Extract --> Graph["L4 Evidence Graph"]
+  Graph --> Intel["L5 Intelligence"]
+  Intel --> Briefs["Briefs and Alerts"]
+```
 
-- **Workflow**: A Directed Acyclic Graph (DAG) stored in PostgreSQL
-- **Task**: A node with a registered `type` (e.g. `IO_ECHO`, `SEND_EMAIL`)
-- **Dependencies**: Directed edges between tasks
-- **Execution**: A single run of a workflow with optional input payload
+| Layer | Status | Location |
+|-------|--------|----------|
+| L1 Orchestration | Partial | `src/executor.js`, `src/worker.js`, `src/queue/` |
+| L2 Connectors | M3 | `src/connectors/` |
+| L3 Extraction | M4 | `src/extraction/` |
+| L4 Evidence Graph | M5 | `prisma/schema.insightflow.sketch.prisma` |
+| L5 Intelligence | M7 | `src/intelligence/` |
 
-## Task States
+## L1 engine (implemented)
 
-### Non-terminal
+| Capability | Description |
+|------------|-------------|
+| DAG execution | Parallel steps, dependency ordering |
+| Job queue | DB-backed worker (`execution_jobs`) |
+| I/O propagation | Upstream outputs flow to downstream steps |
+| Failure handling | Retries, terminal `FAILED`, downstream `BLOCKED` |
+| Webhooks | Ingress triggers + completion callbacks |
 
-- `PENDING`
-- `RUNNING`
-- `RETRYING`
+## Research pipeline
 
-### Terminal
+```
+Research Goal → Source Discovery → Collection (parallel) → Claim Extraction
+  → Evidence Validation → Knowledge Graph → Change Detection → Report
+```
 
-- `COMPLETED`
-- `FAILED` (after retries exhausted)
-- `BLOCKED` (dependency terminally failed)
+- Recipes: [`src/templates/researchRecipes.js`](src/templates/researchRecipes.js)
+- Task roadmap: [`src/domain/taskMapping.js`](src/domain/taskMapping.js)
+- Vocabulary: [`src/domain/vocabulary.js`](src/domain/vocabulary.js)
 
-`BLOCKED` is terminal — downstream tasks are marked unreachable once an upstream task permanently fails.
-
-## Registered Task Types
-
-| Type | Description |
-|------|-------------|
-| `IO_ECHO` | Debug task; echoes resolved input and optional `config.emit` output |
-| `SEND_EMAIL` | Sends email via Gmail/nodemailer (`EMAIL_USER`, `EMAIL_PASS`) |
-
-## API Endpoints
+## API
 
 | Method | Path | Description |
 |--------|------|-------------|
 | `GET` | `/health` | Health check |
-| `POST` | `/api/workflows` | Create workflow |
-| `GET` | `/api/workflows` | List workflows |
-| `GET` | `/api/workflows/:id` | Get workflow with tasks and dependencies |
-| `POST` | `/api/workflows/:id/run` | Trigger execution (body = workflow input) |
-| `GET` | `/api/workflows/:id/executions` | List executions for a workflow |
-| `GET` | `/api/workflows/executions/:executionId` | Get execution details |
+| `GET` | `/api/research/recipes` | Research DAG recipes |
+| `GET` | `/api/research/task-mapping` | Interim vs planned task types |
+| `POST` | `/api/workflows` | Create workflow (backing DAG) |
+| `GET` | `/api/workflows/:id` | Get workflow |
+| `POST` | `/api/workflows/:id/run` | Queue a research run |
+| `GET` | `/api/workflows/executions/:id` | Run details + step I/O |
+| `POST` | `/api/webhooks/:workflowId` | Webhook trigger |
 
-## Getting Started
+## Getting started
 
 ```bash
 cp .env.example .env
-# Edit DATABASE_URL, then:
+# Set DATABASE_URL
+
 npm install
 npm run db:migrate
-npm run db:seed   # optional demo workflow
-npm start
+
+npm start          # Terminal 1 — API
+npm run worker     # Terminal 2 — worker
 ```
+
+## Repo layout
+
+Monorepo until beta. Engine and product evolve together in this repo.
+
+```
+src/domain/          Vocabulary, task mapping
+src/templates/       Research DAG recipes
+src/modules/         API (workflows, research, webhooks)
+src/connectors/      L2 (M3)
+prisma/schema.prisma L1 migrations (active)
+automation-playground/  Legacy inspector — rename at M9
+```
+
+Future schema sketch: [`prisma/schema.insightflow.sketch.prisma`](prisma/schema.insightflow.sketch.prisma)
 
 ## Scripts
 
 | Script | Purpose |
 |--------|---------|
-| `npm start` | Start HTTP server |
-| `npm run db:migrate` | Apply Prisma migrations |
-| `npm run db:seed` | Seed demo IO_ECHO pipeline |
-| `npm run test:io` | Manual IO propagation checks (requires DB) |
+| `npm start` | HTTP API |
+| `npm run worker` | Process queued runs |
+| `npm run db:migrate` | Apply L1 migrations |
+| `npm run test:io` | Engine I/O propagation tests |
 
-## Work in Progress
+## Milestones
 
-- Additional node types (HTTP, delay, condition)
-- Formal test suite (Jest/Vitest)
-- Integration with a visual workflow editor
-- Dedicated worker process (executor currently runs in-process on trigger)
+Local progress: `INSIGHTFLOW_PROGRESS.local.md` (gitignored).
 
-## Inspiration
-
-- n8n
-- Workflow automation engines
-- DAG-based schedulers
+- **M0** — Foundation alignment
+- **M1** — Research workspaces
+- **M2+** — Recipes, connectors, graph, briefs

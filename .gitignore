@@ -1,5 +1,8 @@
 /node_modules
+/automation-playground/node_modules
+/automation-playground/dist
 
+INSIGHTFLOW_PROGRESS.local.md
 /src/generated/prisma
 .env
 .env.local
